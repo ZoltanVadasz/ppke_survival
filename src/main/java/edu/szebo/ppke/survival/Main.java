@@ -3,6 +3,7 @@ package edu.szebo.ppke.survival;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.function.Consumer;
@@ -27,13 +28,31 @@ public class Main {
 			@Override
 			public void accept(String s) {
 
+			    // log.debug("We received: " + s);
+
 				try {
 					Message m = Message.PARSER.parseFrom(s.getBytes());
 
-				log.debug("We received: " + s);
 				} catch (InvalidProtocolBufferException e) {
 					log.error("Input message format was wrong: " + e.getMessage(), e);
 				}
+
+
+                int playerId = 0;
+                int way = 0;
+
+                Communication.Answer answer = Communication.Answer.newBuilder()
+                        .setId(playerId)
+                        .setWay(way)
+                        .build();
+
+                log.debug("Our answer is: " + answer.toString());
+                try {
+                    System.out.write(answer.toByteArray());
+                    System.out.println();
+                } catch (IOException e) {
+                    log.error("Failed to write respons: "+ e.getMessage(), e);
+                }
 			}
 		};
 
