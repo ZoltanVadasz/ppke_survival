@@ -45,10 +45,12 @@
 
     <logger name="edu.szebo.ppke" level="debug" additivity="false">
         <appender-ref ref="STDERR" />
+        <appender-ref ref="logFile" />
     </logger>
 
     <root level="DEBUG">
         <appender-ref ref="STDERR" />
+        <appender-ref ref="logFile" />
     </root>
 
 </configuration>

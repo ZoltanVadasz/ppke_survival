@@ -28,7 +28,7 @@ public class Main {
 			@Override
 			public void accept(String s) {
 
-			    // log.debug("We received: " + s);
+			    log.debug("We received: " + s);
 
 				try {
 					Message m = Message.PARSER.parseFrom(s.getBytes());
@@ -36,7 +36,6 @@ public class Main {
 				} catch (InvalidProtocolBufferException e) {
 					log.error("Input message format was wrong: " + e.getMessage(), e);
 				}
-
 
                 int playerId = 0;
                 int way = 0;
