@@ -1,15 +1,10 @@
 package edu.szebo.ppke.survival;
 
-
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
+
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import edu.szebo.ppke.survival.brain.Brain;
 import edu.szebo.ppke.survival.proto.*;
 import edu.szebo.ppke.survival.proto.Communication.Message;
 import org.slf4j.Logger;
@@ -19,82 +14,92 @@ public class Main {
 
 	private static Logger log = LoggerFactory.getLogger(Main.class.getName());
 
-
-	
-	public static void main(String[] args)
-	{
-
-		Consumer<String> inputConsumer = new Consumer<String>() {
-			@Override
-			public void accept(String s) {
-
-			    log.debug("We received: " + s);
-
-				try {
-					Message m = Message.PARSER.parseFrom(s.getBytes());
-
-				} catch (InvalidProtocolBufferException e) {
-					log.error("Input message format was wrong: " + e.getMessage(), e);
-				}
-
-                int playerId = 0;
-                int way = 0;
-
-                Communication.Answer answer = Communication.Answer.newBuilder()
-                        .setId(playerId)
-                        .setWay(way)
-                        .build();
-
-                log.debug("Our answer is: " + answer.toString());
-                try {
-                    System.out.write(answer.toByteArray());
-                    System.out.println();
-                } catch (IOException e) {
-                    log.error("Failed to write respons: "+ e.getMessage(), e);
+    private static int getLength() {
+        boolean reachedLineEnd = false;
+        int result = 0;
+        String charsRed = "";
+        while (!reachedLineEnd) {
+            try {
+                byte b = (byte) System.in.read();
+                if (b == 0x0A) {
+                    reachedLineEnd=true;
+                    result = Integer.parseInt(charsRed);
+                } else {
+                    charsRed = charsRed + (char) b;
+                    log.debug("Characters red so far: " + charsRed);
                 }
-			}
-		};
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (NumberFormatException nf) {
+                log.error("Couldn't convert input length to a number: " + charsRed + "; error: " + nf.getMessage());
+                return -1;
+            }
+        }
+        return result;
+    }
 
-		log.debug("We started up, it's a happy day :-) ");
+    private static Message readMessage(int inputLength) {
+        byte[] buff = new byte[inputLength];
+        try {
+            int lengthRead = System.in.read(buff, 0, inputLength);
+            // read line end:
+            //noinspection ResultOfMethodCallIgnored
+            System.in.read();
 
-		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            if (lengthRead == -1) {
+                log.error("Standard In stream ended!! Can't expect more: exiting.");
+                System.exit(2);
+            } else if (lengthRead != inputLength) {
+                log.error("Couldn't read in the promised length: " + inputLength + "; got " + lengthRead + " instead! Dropping message.");
+                log.debug("Buffer had " + buff.length + " bytes.");
+            } else {
+                log.info("Could read in message in expected length of " + inputLength + "!");
+                try {
+                    Message message = Message.PARSER.parseFrom(new String(buff).getBytes());
+                    log.info("Received message: \n" + Utils.messageToNiceString(message));
+                    return message;
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("Input message format was wrong: " + e.getMessage(), e);
+                }
+            }
+        } catch (IOException e) {
+            log.error("Failed to read input: " + e.getMessage(), e);
+        }
+        log.error("Failed to read and/or parse an input message!");
+        return null;
+    }
 
-		Stream<String> lineStream = reader.lines();
+    public static void writeAnswer(Communication.Answer answer) {
+        log.info("Our answer what we send is: \n" + answer.toString());
+        try {
+            System.out.write(answer.toByteArray());
+            System.out.println();
+        } catch (IOException e) {
+            log.error("Failed to write response of " + answer.toString() +". Reason: " + e.getMessage(), e);
+        }
+    }
 
-		lineStream.forEachOrdered(inputConsumer);
+	public static void main(String[] args) {
 
-		log.debug("We'll never see this, since we read in an infinite loop :-) ");
+        log.info("We started up, it's a happy day :-) ");
 
-/*
-		Integer[] fields = new Integer[input.getFieldsCount()];
-		int width = input.getWidth();
-		int height = input.getHeight();
-		int hp = input.getHp();
-		int id = input.getId();
-		
-		log.debug("Width:" + width);
-*/
+        Brain mind = new SimpleMind1();
 
+        log.info("We'll use " + mind.getClass().getSimpleName() + " to think");
 
-//		Integer[] sfields = new Integer[input.getSFieldsCount()];
-//		for(int i = 0; i < input.getSFieldsCount(); i++)
-//		{
-//			sfields[i] = input.getSFields(i);
-//		}
-//		
-//		for(int i = 0; i < input.getFieldsCount(); i++)
-//		{
-//			fields[i] = input.getFields(i);
-//		}
-//		
-//		int[] fields_ = Utils.toIntArray(fields);
-//		int[] sfields_ = Utils.toIntArray(sfields);
-//		
-//		int[] mapWidth = new int[width];
-//		
-//		for(int i = 0; i < width; i++)
-//		{
-//			mapWidth[i] = fields_[i];
-//		}
-	}
+        //noinspection InfiniteLoopStatement
+        while (true) {
+
+            int inputLength = getLength();
+            if (inputLength < 0) {
+                log.error("Wrong input length of " + inputLength + "; skip reading and processing.");
+            } else {
+                Message msg = readMessage(inputLength);
+                if (null != msg) {
+                    Communication.Answer answer = mind.decideBasedOn(msg);
+                    writeAnswer(answer);
+                }
+            }
+        }
+    }
 }
